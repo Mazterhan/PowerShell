@@ -20,7 +20,7 @@ if ($SiteName = 'RVD')
 #Создание архива данных, перенос
 Compress-Archive -Path $sourceFolder -CompressionLevel Optimal -Update -DestinationPath "$TempZIPFolder $SiteName .zip"
 
-#ftp server
+#копирование на ftp server
 $webclient = New-Object System.Net.WebClient 
 $webclient.Credentials = New-Object System.Net.NetworkCredential($user_TestURL,$password)  
 $webclient.UploadFile($targetFTPFolder, $TempZIPFolder+$SiteName.zip)
