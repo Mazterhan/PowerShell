@@ -1,39 +1,40 @@
 ﻿function UpdateSite ($SiteName)
 {
+if ( $SiteName -ne "TestWebAppSlotProd" ) { exit } #Проверка входного хзначения
+if (( $SiteName -ne "RVD"  ) -and` ($SiteName -ne "IBV") -and` ($SiteName -ne "Complyraq ") ) { exit }
+
+
 Login-AzureRmAccount  
 Select-AzureRmSubscription -SubscriptionId '6c28b945-6d98-403d-8936-5e658f228a0f'  
 $FTPPass = '3v}B~PMWR)5bB&gt' # FTP Server Variables
-if ($SiteName = 'RVD')
-   {
-   $SiteName          = 'RvdNow'
-   $Site_TestURL      = 'https://rvdnow-preprodstage.azurewebsites.net'
-   $Site_URL          = 'https://www.rvdnow.com'
-   $UploadFolder      = '\\PRBCWEBTESTX\c$\Projects\MB.rVd\'  #Directory where to find pictures to upload
-   $FTPHost           = 'ftp://waws-prod-dm1-015.ftp.azurewebsites.windows.net/site/wwwroot/' # FTP Server Variables
-   $FTPUser           = 'rvdnow__PreProdStage\optoutadmin1'  # FTP Server Variables
-   $sourceslot        = 'rvdnow-PreProdStage'
-   $destinationslot   = 'rvdnow'
-   $RG                = 'RvdNow' 
-   }
 
+if ($SiteName = 'TEST')
+   {
+   $SiteName          = 'TestWebAppSlotProd'
+   $Site_TestURL      = 'https://testwebappslotprod-stage.azurewebsites.net'
+   $Site_URL          = 'https://testwebappslotprod.azurewebsites.net'
+   $UploadFolder      = '\\D81\RVD_ftp_site\*'  #Directory where to find pictures to upload
+   $FTPHost           = 'ftp://waws-prod-dm1-015.ftp.azurewebsites.windows.net/site/wwwroot/' # FTP Server Variables
+   $FTPUser           = 'testwebappslotprod__Stage\optoutadmin1'  # FTP Server Variables
+   $sourceslot        = 'Stage'
+   $destinationslot   = 'testwebappslotprod '
+   $RG                = 'DeploymentSlots' 
+   }
 
 clear
  
-# FTP Server Variables
- 
-#Directory where to find pictures to upload
+#Directory where to find data to upload
   
 $webclient = New-Object System.Net.WebClient 
 $webclient.Credentials = New-Object System.Net.NetworkCredential($FTPUser,$FTPPass)  
- 
 $SrcEntries = Get-ChildItem $UploadFolder -Recurse
 $Srcfolders = $SrcEntries | Where-Object{$_.PSIsContainer}
 $SrcFiles = $SrcEntries | Where-Object{!$_.PSIsContainer}
  
-# Create FTP Directory/SubDirectory If Needed - Start
+# Create FTP Directory/SubDirectory if needed - Start
 foreach($folder in $Srcfolders)
 {    
-    $SrcFolderPath = $UploadFolder  -replace "\\","\\" -replace "\:","\:"   
+    $SrcFolderPath = $UploadFolder -replace "\\","\\" -replace "\:","\:"   
     $DesFolder = $folder.Fullname -replace $SrcFolderPath,$FTPHost
     $DesFolder = $DesFolder -replace "\\", "/"
     # Write-Output $DesFolder
@@ -78,12 +79,28 @@ foreach($entry in $SrcFiles)
 }
 # Upload Files - Stop
 
-
-
 #проверка работоспособности тестового сайта
+Restart-AzureRmWebAppSlot -ResourceGroupName "deploymentslots"  -Name "testwebappslotprod" -Slot "Stage"
+
 Start-Process chrome.exe -ArgumentList @( '-incognito', $Site_TestURL )
+#ожидание ответа пользователя
+write-host -nonewline "The site is working correct? (Y/N) "
+$response = read-host
+if ( $response -ne "Y" ) { exit }
+
 #переключение слотов
-Switch-AzureRmWebAppSlot -SourceSlotName $sourceslot -DestinationSlotName $destinationslot -ResourceGroupName $RG -Name $SiteName
+write-host -newline "______________________________________________________ "
+write-host -newline "От куда переключаем" $sourceslot
+write-host -newline "На что переключаем" $destinationslot 
+write-host -newline "Ресурсная группа" $RG 
+write-host -newline "Сайт" $SiteName
+write-host -newline "______________________________________________________ "
+
+write-host -nonewline "Are the slots and the site listed correctly? (Y/N) "
+$response = read-host
+if ( $response -ne "Y" ) { exit }
+
+Switch-AzureRmWebAppSlot -SourceSlotName $sourceslot -ResourceGroupName $RG -Name $SiteName
 #проверка работоспособности продакшн сайта
 Start-Process chrome.exe -ArgumentList @( '-incognito', $Site_URL )
 }
